@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZanAi | AI-система анализа законодательства</title>
+    <meta
+      name="description"
+      content="ZanAi — AI-платформа для анализа законов, поиска коллизий, explainability и работы с юридическим чат-ботом."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-inner">
+        <a class="brand" href="#home">
+          <span class="brand-mark">ZA</span>
+          <span>
+            <span class="brand-name">ZanAi</span>
+            <span class="brand-sub">AI for legislation</span>
+          </span>
+        </a>
+
+        <nav class="nav-links">
+          <a href="#home">Главная</a>
+          <a href="#platform">Платформа</a>
+          <a href="#features">Возможности</a>
+          <a href="./chat.html" target="_blank" rel="noopener">Чат-бот</a>
+          <a href="#roadmap">Roadmap</a>
+          <a class="nav-cta" href="./chat.html" target="_blank" rel="noopener">Открыть чат-бот</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero container" id="home">
+        <div class="hero-grid">
+          <div class="panel hero-copy reveal">
+            <div class="eyebrow">AI-система анализа законодательства</div>
+            <h1>
+              ZanAi
+              <span class="headline-accent">делает<br />законодательство<br />прозрачным</span>
+            </h1>
+            <p class="hero-text">
+              Платформа анализирует нормативные акты, выявляет коллизии, дубли и устаревшие
+              нормы, объясняет причины каждой пометки и даёт отдельный экран с юридическим
+              чат-ботом для быстрого взаимодействия с системой.
+            </p>
+
+            <div class="hero-actions">
+              <a class="button button-primary" href="#platform">Посмотреть платформу</a>
+              <a class="button button-secondary" href="./chat.html" target="_blank" rel="noopener">Перейти к чат-боту</a>
+            </div>
+
+            <div class="metrics">
+              <div class="metric">
+                <strong>Explainable</strong>
+                <span>каждый вывод сопровождается причиной, связями и следующим действием</span>
+              </div>
+              <div class="metric">
+                <strong>Human-in-loop</strong>
+                <span>AI помогает юристу и аналитику, но не заменяет экспертное решение</span>
+              </div>
+              <div class="metric">
+                <strong>GovTech UX</strong>
+                <span>сайт собран как полноценный продукт, а не как обычный промо-экран</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel hero-visual reveal">
+            <div class="panel-top">
+              <span>Legislative Graph</span>
+              <span class="status">AI online</span>
+            </div>
+
+            <div class="graph" aria-hidden="true">
+              <span class="node node-main"></span>
+              <span class="node node-a"></span>
+              <span class="node node-b"></span>
+              <span class="node node-c"></span>
+              <span class="node node-d"></span>
+              <span class="edge edge-a"></span>
+              <span class="edge edge-b"></span>
+              <span class="edge edge-c"></span>
+              <span class="edge edge-d"></span>
+            </div>
+
+            <div class="insight-list">
+              <div class="insight">
+                <strong>Конфликт нормы</strong>
+                <p>Новая редакция статьи противоречит связанному подзаконному акту и повышает риск неоднозначного толкования.</p>
+              </div>
+              <div class="insight">
+                <strong>Дублирование</strong>
+                <p>ZanAi находит повторяющиеся по смыслу требования и подсказывает, где регулирование можно упростить.</p>
+              </div>
+              <div class="insight">
+                <strong>Explainability</strong>
+                <p>Пользователь видит источник сигнала, связанную норму и рекомендуемый шаг для экспертной проверки.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="platform">
+        <div class="section-panel reveal">
+          <div class="section-header">
+            <span class="section-kicker">Платформа</span>
+            <h2>Полноценный сайт вокруг продукта</h2>
+            <p>
+              Здесь есть не только описание решения, но и экран платформы, блок возможностей,
+              отдельная страница чат-бота и roadmap развития проекта.
+            </p>
+          </div>
+
+          <div class="grid-3">
+            <article class="card">
+              <span class="card-badge">01</span>
+              <h3>Анализ актов</h3>
+              <p>Система принимает тексты законов и НПА, извлекает нормы, связи, редакции и юридические сущности.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">02</span>
+              <h3>Поиск аномалий</h3>
+              <p>AI находит коллизии, дублирование и устаревшие положения, которые увеличивают регуляторную энтропию.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">03</span>
+              <h3>Объяснимый вывод</h3>
+              <p>Каждый результат сопровождается объяснением, привязкой к источнику и рекомендацией для эксперта.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="features">
+        <div class="section-panel reveal">
+          <div class="section-header">
+            <span class="section-kicker">Возможности</span>
+            <h2>Что умеет ZanAi</h2>
+          </div>
+
+          <div class="grid-4">
+            <article class="card">
+              <span class="card-badge">A</span>
+              <h3>Сравнение редакций</h3>
+              <p>Показывает, что изменилось по смыслу, а не только по словам.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">B</span>
+              <h3>Граф связей</h3>
+              <p>Визуализирует отношения между законами, подзаконными актами и статьями.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">C</span>
+              <h3>Карточка риска</h3>
+              <p>Собирает причину, источник и следующее действие в одном понятном блоке.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">D</span>
+              <h3>Чат-бот</h3>
+              <p>Даёт быстрый доступ к анализу, резюме нормы и объяснению потенциальных конфликтов.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="chatbot">
+        <div class="section-panel reveal">
+          <div class="section-header">
+            <span class="section-kicker">Отдельная страница</span>
+            <h2>Чат-бот ZanAi</h2>
+            <p>
+              Рабочий интерфейс с вкладками режимов и полноценным чатом вынесен в отдельный HTML-файл.
+              Откройте его в новом окне браузера, чтобы не перегружать главную страницу.
+            </p>
+          </div>
+
+          <div class="hero-actions chatbot-cta-row">
+            <a class="button button-primary" href="./chat.html" target="_blank" rel="noopener">
+              Открыть чат в новом окне
+            </a>
+            <a class="button button-secondary" href="./chat.html">Открыть на этой вкладке</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="roadmap">
+        <div class="section-panel reveal">
+          <div class="section-header">
+            <span class="section-kicker">Roadmap</span>
+            <h2>Куда проект растёт после MVP</h2>
+          </div>
+
+          <div class="grid-3">
+            <article class="card">
+              <span class="card-badge">1</span>
+              <h3>Первый продуктовый релиз</h3>
+              <p>Базовый анализ, explainability, визуальная карта связей и демо-чат для презентации.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">2</span>
+              <h3>Подключение корпуса НПА</h3>
+              <p>Расширение базы документов и более глубокий поиск связей между нормативными актами.</p>
+            </article>
+            <article class="card">
+              <span class="card-badge">3</span>
+              <h3>Рабочий GovTech-продукт</h3>
+              <p>нтеграция в процессы госорганов, мониторинг новых актов и приоритизация зон риска.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer container">
+      <div class="footer-grid reveal">
+        <div>
+          <h3>ZanAi</h3>
+          <p class="footer-copy">
+            AI-система анализа законодательства с explainability, картой связей и отдельной страницей чат-бота.
+            Сайт собран как продуктовая витрина самостоятельного GovTech-решения.
+          </p>
+        </div>
+        <div class="footer-links">
+          <a href="#home">Главная</a>
+          <a href="#platform">Платформа</a>
+          <a href="#features">Возможности</a>
+          <a href="./chat.html" target="_blank" rel="noopener">Чат-бот</a>
+        </div>
+      </div>
+    </footer>
+
+        <script src="./script.js"></script>
+  </body>
+</html>
+

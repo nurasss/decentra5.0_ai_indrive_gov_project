@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html class="chat-root" lang="ru">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ZanAi Chat</title>
+    <meta
+      name="description"
+      content="ZanAi — чат для анализа законодательства. История диалогов и ответы через API."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./chat.css" />
+  </head>
+  <body class="gpt-app">
+    <div class="gpt-overlay" id="sidebarOverlay" aria-hidden="true" tabindex="-1"></div>
+
+    <aside class="gpt-sidebar" id="gptSidebar" aria-label="История чатов">
+      <div class="gpt-sidebar-head">
+        <a class="gpt-sidebar-brand" href="./index.html" title="На главную">
+          <span class="gpt-sidebar-brand-mark">ZA</span>
+          <span class="gpt-sidebar-brand-text">ZanAi</span>
+        </a>
+      </div>
+
+      <button type="button" class="gpt-btn-new" id="newChatBtn">
+        <span class="gpt-btn-new-icon" aria-hidden="true">+</span>
+        Новый чат
+      </button>
+
+      <div class="gpt-history-label">История</div>
+      <nav class="gpt-history" id="chatHistoryList"></nav>
+
+      <div class="gpt-sidebar-foot">
+        <a class="gpt-sidebar-link" href="./index.html">← На главную</a>
+        <a class="gpt-sidebar-link" href="./index.html#platform">Платформа</a>
+      </div>
+    </aside>
+
+    <div class="gpt-shell">
+      <header class="gpt-topbar">
+        <button type="button" class="gpt-icon-btn" id="sidebarToggle" aria-label="Меню" aria-expanded="false">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M3 12h18M3 6h18M3 18h18" />
+          </svg>
+        </button>
+        <div class="gpt-topbar-title" id="topbarTitle">ZanAi</div>
+        <div class="gpt-mode-wrap" role="tablist" aria-label="Режим">
+          <button type="button" class="gpt-mode-pill active" data-tab="assistant" role="tab">Ассистент</button>
+          <button type="button" class="gpt-mode-pill" data-tab="review" role="tab">Проверка</button>
+          <button type="button" class="gpt-mode-pill" data-tab="summary" role="tab">Резюме</button>
+        </div>
+        <div class="gpt-pane-switch" role="tablist" aria-label="Окна">
+          <button type="button" class="gpt-pane-pill active" data-pane="split">2 окна</button>
+          <button type="button" class="gpt-pane-pill" data-pane="analyze">Analyze</button>
+          <button type="button" class="gpt-pane-pill" data-pane="compare">Compare</button>
+        </div>
+      </header>
+
+      <p class="gpt-mode-hint" id="modeHint"></p>
+
+      <main class="gpt-dual-grid" aria-live="polite">
+        <section class="gpt-workspace">
+          <div class="gpt-workspace-head">
+            <h3>Analyze</h3>
+            <span class="gpt-workspace-badge">/api/analyze</span>
+          </div>
+
+          <div class="gpt-messages gpt-messages--pane" id="analyzeWindow"></div>
+
+          <div class="gpt-pane-composer">
+            <textarea
+              id="analyzeInput"
+              class="gpt-input"
+              rows="2"
+              placeholder="Введите норму, название акта или фрагмент документа…"
+              autocomplete="off"
+            ></textarea>
+            <button type="button" class="gpt-send" id="analyzeSend" aria-label="Запустить анализ">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+        </section>
+
+        <section class="gpt-workspace">
+          <div class="gpt-workspace-head">
+            <h3>Compare</h3>
+            <span class="gpt-workspace-badge">/api/compare</span>
+          </div>
+
+          <div class="gpt-messages gpt-messages--pane" id="compareWindow"></div>
+
+          <div class="gpt-pane-composer gpt-pane-composer--stack">
+            <textarea
+              id="compareInputA"
+              class="gpt-input gpt-input--compare"
+              rows="2"
+              placeholder="Норма A…"
+              autocomplete="off"
+            ></textarea>
+            <textarea
+              id="compareInputB"
+              class="gpt-input gpt-input--compare"
+              rows="2"
+              placeholder="Норма B…"
+              autocomplete="off"
+            ></textarea>
+            <button type="button" class="gpt-send gpt-send--wide" id="compareSend" aria-label="Сравнить нормы">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 19V5M5 12l7-7 7 7" />
+              </svg>
+            </button>
+          </div>
+        </section>
+      </main>
+
+      <p class="gpt-disclaimer gpt-disclaimer--fixed">
+        ZanAi может допускать ошибки. Проверяйте важные нормы с юристом. API:
+        <code class="gpt-code">/api/analyze</code> и <code class="gpt-code">/api/compare</code>
+      </p>
+    </div>
+
+    <script src="./chat.js"></script>
+  </body>
+</html>

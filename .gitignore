@@ -1,0 +1,17 @@
+.env
+.env.openai
+.venv/
+.DS_Store
+__pycache__/
+.pytest_cache/
+repo_clean/
+PythonProject2/db/
+PythonProject2/db 2/
+PythonProject2/prepared_ollama/
+PythonProject2/prepared_ollama_test/
+PythonProject2/adilet_scraper/output.csv
+PythonProject2/adilet_scraper/clean_laws.csv
+PythonProject2/adilet_parsed_texts.csv
+PythonProject2/adilet_parsed_texts_15k.csv
+PythonProject2/adilet_links_BACKUP.csv
+*.pyc

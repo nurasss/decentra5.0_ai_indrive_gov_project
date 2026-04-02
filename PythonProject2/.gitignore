@@ -1,0 +1,15 @@
+__pycache__/
+.idea/
+db/
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+
+# Local evaluation artifacts
+baseline_errors.jsonl
+judge_errors.jsonl
+
+# Optional large generated artifacts
+prepared_ollama/
+prepared_ollama_test/
