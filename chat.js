@@ -1,5 +1,11 @@
 const STORAGE_KEY = "zanai_chats_v3";
 
+// API base URL — override via ?api=http://... query param or set window.API_BASE_URL before loading
+const API_BASE_URL = (() => {
+  const params = new URLSearchParams(window.location.search);
+  return (params.get("api") || window.API_BASE_URL || "http://127.0.0.1:8000").replace(/\/$/, "");
+})();
+
 const botStates = {
   assistant: {
     title: "AI-ассистент для юриста",
@@ -337,11 +343,48 @@ function buildCardRow(item) {
   title.textContent = item.title || "Найденная норма";
   bubble.appendChild(title);
 
+  // Routing badge
+  if (judge.routing) {
+    const badge = document.createElement("span");
+    const routingMap = {
+      critical_conflict: { label: "⚠ Критическое противоречие", cls: "gpt-badge--critical" },
+      human_review:      { label: "👁 Требует проверки юриста",  cls: "gpt-badge--review"   },
+      pass:              { label: "✓ Норма не конфликтует",      cls: "gpt-badge--pass"     },
+    };
+    const r = routingMap[judge.routing] || { label: judge.routing, cls: "" };
+    badge.className = `gpt-routing-badge ${r.cls}`;
+    badge.textContent = r.label;
+    bubble.appendChild(badge);
+  }
+
   const meta = document.createElement("p");
   meta.className = "gpt-card-meta";
   meta.innerHTML =
-    `Distance: <b>${Number(item.distance).toFixed(3)}</b> · baseline: <b>${item.baseline_label}</b> (${Number(item.baseline_score).toFixed(2)}) · judge: <b>${judge.label}</b> · routing: <b>${judge.routing}</b>`;
+    `Сходство: <b>${(1 - Number(item.distance)).toFixed(2)}</b> · NLI: <b>${item.baseline_label}</b> (${Number(item.baseline_score).toFixed(2)}) · Judge: <b>${judge.label}</b> · Уверенность: <b>${judge.confidence ? (Number(judge.confidence)*100).toFixed(0)+"%" : "—"}</b>`;
   bubble.appendChild(meta);
+
+  const metadataParts = [];
+  if (item.document_type) {
+    metadataParts.push(`Тип: ${item.document_type}`);
+  }
+  if (item.status) {
+    metadataParts.push(`Статус: ${item.status}`);
+  }
+  if (item.adoption_date) {
+    metadataParts.push(`Дата: ${item.adoption_date}`);
+  }
+  if (item.authority) {
+    metadataParts.push(`Орган: ${item.authority}`);
+  }
+  if (item.version_role && item.version_role !== "unknown") {
+    metadataParts.push(`Роль версии: ${item.version_role}`);
+  }
+  if (metadataParts.length) {
+    const metadata = document.createElement("p");
+    metadata.className = "gpt-card-meta";
+    metadata.textContent = metadataParts.join(" · ");
+    bubble.appendChild(metadata);
+  }
 
   if (item.url) {
     const link = document.createElement("a");
@@ -353,21 +396,25 @@ function buildCardRow(item) {
     bubble.appendChild(link);
   }
 
-  if (judge.step_3_compare) {
+  if (judge.step_1_extract_A || judge.step_3_compare) {
     const reasoning = document.createElement("details");
     reasoning.className = "gpt-details";
+    // Auto-open for critical conflicts so judges see reasoning immediately
+    if (judge.routing === "critical_conflict" || judge.routing === "human_review") {
+      reasoning.open = true;
+    }
 
     const summary = document.createElement("summary");
-    summary.textContent = "Explainability";
+    summary.textContent = "Пошаговый анализ (Explainability)";
     reasoning.appendChild(summary);
 
     const list = document.createElement("div");
     list.className = "gpt-details-body";
     list.innerHTML = `
-      <p><b>A:</b> ${judge.step_1_extract_A || "—"}</p>
-      <p><b>B:</b> ${judge.step_2_extract_B || "—"}</p>
-      <p><b>Compare:</b> ${judge.step_3_compare || "—"}</p>
-      <p><b>Human review:</b> ${judge.requires_human_review ? "Да" : "Нет"}</p>
+      <div class="gpt-step"><span class="gpt-step-num">1</span><div><b>Норма A:</b> ${judge.step_1_extract_A || "—"}</div></div>
+      <div class="gpt-step"><span class="gpt-step-num">2</span><div><b>Норма B:</b> ${judge.step_2_extract_B || "—"}</div></div>
+      <div class="gpt-step"><span class="gpt-step-num">3</span><div><b>Сравнение:</b> ${judge.step_3_compare || "—"}</div></div>
+      ${judge.requires_human_review ? '<div class="gpt-step-alert">🔎 Рекомендована проверка юристом</div>' : ''}
     `;
     reasoning.appendChild(list);
     bubble.appendChild(reasoning);
@@ -424,6 +471,14 @@ function renderPaneMessages(pane, container) {
       container.appendChild(buildSectionRow(msg.text));
     } else if (msg.kind === "card") {
       container.appendChild(buildCardRow(msg.item));
+    } else if (msg.kind === "mermaid") {
+      const pre = document.createElement("pre");
+      pre.className = "gpt-mermaid-source";
+      pre.textContent = msg.text;
+      container.appendChild(pre);
+      if (typeof window.__mermaidRender === "function") {
+        window.__mermaidRender(pre);
+      }
     }
   });
 
@@ -587,6 +642,54 @@ function buildFindingText(items, emptyText) {
     .join("\n\n");
 }
 
+function buildVersionDiffText(items) {
+  if (!Array.isArray(items) || !items.length) {
+    return "Явных цепочек версий или поправок среди верхних результатов не найдено.";
+  }
+
+  return items
+    .slice(0, 3)
+    .map((item, index) =>
+      [
+        `${index + 1}. ${item.title || "Без названия"}`,
+        `Сигнал: ${item.signal || "version_change"}`,
+        `Предыдущая версия: ${item.previous_fragment || "—"}`,
+        `Новая версия/поправка: ${item.current_fragment || "—"}`,
+        item.explanation || "",
+        item.url || "",
+      ]
+        .filter(Boolean)
+        .join("\n")
+    )
+    .join("\n\n");
+}
+
+function buildGraphText(graph) {
+  if (!graph || !Array.isArray(graph.nodes) || !Array.isArray(graph.edges) || !graph.nodes.length) {
+    return "Граф связей пока не построен.";
+  }
+
+  const nodeLines = graph.nodes
+    .slice(0, 8)
+    .map((node) => `• ${node.label} [${node.node_type}, risk=${node.risk_level}]`);
+  const edgeLines = graph.edges
+    .slice(0, 10)
+    .map((edge) => `• ${edge.source} -> ${edge.target} (${edge.relation})`);
+
+  return [
+    graph.summary || "Построен граф связей.",
+    "",
+    "Узлы:",
+    nodeLines.join("\n") || "—",
+    "",
+    "Связи:",
+    edgeLines.join("\n") || "—",
+    "",
+    "Mermaid:",
+    graph.mermaid || "—",
+  ].join("\n");
+}
+
 function buildCompareMessages(payload) {
   const judge = payload.judge || {};
   const verdict = payload.contradiction ? "Противоречие обнаружено" : "Явного противоречия не обнаружено";
@@ -674,6 +777,24 @@ function buildAnalysisMessages(payload) {
     });
   }
 
+  if (Array.isArray(payload.version_diffs)) {
+    messages.push({ kind: "section", text: "Изменения Между Версиями" });
+    messages.push({
+      role: "assistant",
+      kind: "text",
+      text: buildVersionDiffText(payload.version_diffs),
+    });
+  }
+
+  if (payload.relation_graph) {
+    messages.push({ kind: "section", text: "Граф Связей" });
+    if (payload.relation_graph.mermaid && payload.relation_graph.mermaid !== "—") {
+      messages.push({ role: "assistant", kind: "mermaid", text: payload.relation_graph.mermaid });
+    } else {
+      messages.push({ role: "assistant", kind: "text", text: buildGraphText(payload.relation_graph) });
+    }
+  }
+
   if (Array.isArray(payload.related_documents) && payload.related_documents.length) {
     messages.push({ kind: "section", text: "Связанные Акты" });
     payload.related_documents.slice(0, 4).forEach((item) => {
@@ -738,14 +859,14 @@ function removeCompareLoadingState() {
 }
 
 async function analyzeNorm(query) {
-  const response = await fetch("http://127.0.0.1:8000/api/analyze", {
+  const response = await fetch(`${API_BASE_URL}/api/analyze`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       text: query,
-      top_k: 2,
+      top_k: 4,
     }),
   });
 
@@ -771,7 +892,7 @@ async function analyzeNorm(query) {
 }
 
 async function compareNorms(textA, textB) {
-  const response = await fetch("http://127.0.0.1:8000/api/compare", {
+  const response = await fetch(`${API_BASE_URL}/api/compare`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

@@ -1,0 +1,36 @@
+version: "3.9"
+
+services:
+  api:
+    build: .
+    container_name: zanai_api
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Persist the Chroma vector database across restarts
+      - ./PythonProject2/db:/app/PythonProject2/db
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    image: nginx:alpine
+    container_name: zanai_frontend
+    ports:
+      - "5500:80"
+    volumes:
+      - ./index.html:/usr/share/nginx/html/index.html:ro
+      - ./chat.html:/usr/share/nginx/html/chat.html:ro
+      - ./styles.css:/usr/share/nginx/html/styles.css:ro
+      - ./chat.css:/usr/share/nginx/html/chat.css:ro
+      - ./script.js:/usr/share/nginx/html/script.js:ro
+      - ./chat.js:/usr/share/nginx/html/chat.js:ro
+    depends_on:
+      - api
+    restart: unless-stopped

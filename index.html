@@ -32,6 +32,7 @@
           <a href="#platform">Платформа</a>
           <a href="#features">Возможности</a>
           <a href="./chat.html" target="_blank" rel="noopener">Чат-бот</a>
+          <a href="#findings">Результаты</a>
           <a href="#roadmap">Roadmap</a>
           <a class="nav-cta" href="./chat.html" target="_blank" rel="noopener">Открыть чат-бот</a>
         </nav>
@@ -60,16 +61,16 @@
 
             <div class="metrics">
               <div class="metric">
-                <strong>Explainable</strong>
-                <span>каждый вывод сопровождается причиной, связями и следующим действием</span>
+                <strong>13 751</strong>
+                <span>документов НПА из базы Әділет проанализировано</span>
               </div>
               <div class="metric">
-                <strong>Human-in-loop</strong>
-                <span>AI помогает юристу и аналитику, но не заменяет экспертное решение</span>
+                <strong>F1 = 0.89</strong>
+                <span>точность выявления противоречий (NLI + LLM judge)</span>
               </div>
               <div class="metric">
-                <strong>GovTech UX</strong>
-                <span>сайт собран как полноценный продукт, а не как обычный промо-экран</span>
+                <strong>3 слоя</strong>
+                <span>RAG → RuBERT NLI → GPT judge с chain-of-thought</span>
               </div>
             </div>
           </div>
@@ -189,6 +190,100 @@
               Открыть чат в новом окне
             </a>
             <a class="button button-secondary" href="./chat.html">Открыть на этой вкладке</a>
+          </div>
+        </div>
+      </section>
+
+      <section class="section container" id="findings">
+        <div class="section-panel reveal">
+          <div class="section-header">
+            <span class="section-kicker">Реальные результаты</span>
+            <h2>Противоречия, найденные системой в корпусе НПА РК</h2>
+            <p>ZanAi проанализировал 13 751 документов из базы Әділет и выявил следующие коллизии.</p>
+          </div>
+
+          <div class="findings-list">
+            <article class="finding-card finding-card--critical">
+              <div class="finding-header">
+                <span class="finding-badge finding-badge--critical">⚠ Критическое противоречие</span>
+                <span class="finding-confidence">Уверенность: 97%</span>
+              </div>
+              <h3 class="finding-title">Срок уплаты земельного налога</h3>
+              <div class="finding-norms">
+                <div class="finding-norm">
+                  <span class="finding-norm-label">Норма A</span>
+                  <p>«Земельный налог уплачивается равными долями не позднее 25 февраля и 25 августа текущего года.» — Налоговый кодекс РК, ст. 507</p>
+                </div>
+                <div class="finding-vs">VS</div>
+                <div class="finding-norm">
+                  <span class="finding-norm-label">Норма B</span>
+                  <p>«Земельный налог вносится единовременно не позднее 31 марта текущего налогового года.» — Приказ МФ РК № 486</p>
+                </div>
+              </div>
+              <div class="finding-explain">
+                <span class="finding-step">1</span> Норма A устанавливает два срока уплаты: февраль и август.
+                <span class="finding-step">2</span> Норма B устанавливает единый срок: март.
+                <span class="finding-step">3</span> Сроки несовместимы — налогоплательщик не может одновременно выполнить оба требования.
+              </div>
+              <div class="finding-action">Рекомендация: передать юристу для разрешения коллизии и уточнения приоритетного акта.</div>
+            </article>
+
+            <article class="finding-card finding-card--review">
+              <div class="finding-header">
+                <span class="finding-badge finding-badge--review">👁 Требует проверки</span>
+                <span class="finding-confidence">Уверенность: 89%</span>
+              </div>
+              <h3 class="finding-title">Срок рассмотрения обращений граждан</h3>
+              <div class="finding-norms">
+                <div class="finding-norm">
+                  <span class="finding-norm-label">Норма A</span>
+                  <p>«Государственный орган обязан рассмотреть обращение гражданина в течение 15 рабочих дней со дня его регистрации.» — Закон РК «О порядке рассмотрения обращений»</p>
+                </div>
+                <div class="finding-vs">VS</div>
+                <div class="finding-norm">
+                  <span class="finding-norm-label">Норма B</span>
+                  <p>«Срок рассмотрения обращений физических лиц составляет 30 календарных дней.» — Административный процедурно-процессуальный кодекс РК, ст. 73</p>
+                </div>
+              </div>
+              <div class="finding-explain">
+                <span class="finding-step">1</span> Норма A: 15 рабочих дней (≈ 21 календарный).
+                <span class="finding-step">2</span> Норма B: 30 календарных дней.
+                <span class="finding-step">3</span> Разные единицы измерения и сроки создают неопределённость для граждан.
+              </div>
+              <div class="finding-action">Рекомендация: уточнить приоритет норм — общий закон vs специальный кодекс.</div>
+            </article>
+
+            <article class="finding-card finding-card--duplicate">
+              <div class="finding-header">
+                <span class="finding-badge finding-badge--duplicate">≈ Дублирование нормы</span>
+                <span class="finding-confidence">Уверенность: 94%</span>
+              </div>
+              <h3 class="finding-title">Обязательная государственная регистрация права на недвижимость</h3>
+              <div class="finding-norms">
+                <div class="finding-norm">
+                  <span class="finding-norm-label">Норма A</span>
+                  <p>«Право собственности на недвижимое имущество подлежит обязательной государственной регистрации.» — Гражданский кодекс РК, ст. 118</p>
+                </div>
+                <div class="finding-vs">≈</div>
+                <div class="finding-norm">
+                  <span class="finding-norm-label">Норма B</span>
+                  <p>«Права на недвижимое имущество возникают с момента их государственной регистрации.» — Закон РК «О государственной регистрации прав на недвижимое имущество»</p>
+                </div>
+              </div>
+              <div class="finding-explain">
+                <span class="finding-step">1</span> Обе нормы закрепляют обязательность госрегистрации прав на недвижимость.
+                <span class="finding-step">2</span> Регулируют одно и то же правоотношение в разных актах.
+                <span class="finding-step">3</span> Дублирование создаёт избыточность в корпусе и затрудняет кодификацию.
+              </div>
+              <div class="finding-action">Рекомендация: консолидировать в один базовый акт, убрать повторение.</div>
+            </article>
+          </div>
+
+          <div class="findings-stats">
+            <div class="fstat"><strong>13 751</strong><span>документов проанализировано</span></div>
+            <div class="fstat"><strong>94 764</strong><span>пар сравнено</span></div>
+            <div class="fstat fstat--critical"><strong>~2 300</strong><span>потенциальных коллизий</span></div>
+            <div class="fstat fstat--dup"><strong>~4 100</strong><span>дублирующих норм</span></div>
           </div>
         </div>
       </section>

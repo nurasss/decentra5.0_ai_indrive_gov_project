@@ -122,7 +122,7 @@ QUERY_TOKEN_EXPANSIONS = {
 app = FastAPI(
     title="ZanAi Backend",
     description="API for legal search, retrieval-augmented answers, and contradiction analysis.",
-    version="0.3.0",
+    version="0.5.0",
 )
 
 app.add_middleware(
@@ -163,6 +163,14 @@ class SourceItem(BaseModel):
     baseline_score: float
     contradiction: bool
     judge: Optional[JudgePayload]
+    document_type: str = ""
+    authority: str = ""
+    adoption_date: str = ""
+    status: str = ""
+    article_refs: list[str] = Field(default_factory=list)
+    outgoing_references: list[str] = Field(default_factory=list)
+    version_role: Literal["base_act", "amendment_act", "unknown"] = "unknown"
+    linked_base_title: str = ""
 
 
 class FindingItem(BaseModel):
@@ -176,6 +184,36 @@ class NormStatus(BaseModel):
     label: Literal["likely_active", "amendment_detected", "stale_or_lost_force", "requires_review"]
     title: str
     summary: str
+
+
+class VersionDiffItem(BaseModel):
+    title: str
+    url: str
+    signal: str
+    previous_fragment: str
+    current_fragment: str
+    explanation: str
+
+
+class GraphNode(BaseModel):
+    id: str
+    label: str
+    node_type: str
+    risk_level: Literal["low", "medium", "high"]
+
+
+class GraphEdge(BaseModel):
+    source: str
+    target: str
+    relation: str
+    explanation: str
+
+
+class RelationGraph(BaseModel):
+    nodes: list[GraphNode]
+    edges: list[GraphEdge]
+    summary: str
+    mermaid: str
 
 
 class AnalyzeResponse(BaseModel):
@@ -192,6 +230,8 @@ class AnalyzeResponse(BaseModel):
     possible_conflicts: list[FindingItem]
     possible_duplicates: list[FindingItem]
     staleness_signals: list[FindingItem]
+    version_diffs: list[VersionDiffItem]
+    relation_graph: RelationGraph
     total_sources: int
     retrieval_threshold: float
 
@@ -470,13 +510,144 @@ def is_strong_match(item: dict) -> bool:
     return float(item["distance"]) <= MAX_JUDGE_VECTOR_DISTANCE
 
 
+def extract_document_type(title: str) -> str:
+    lowered = normalize_text(title).lower()
+    mapping = (
+        ("кодекс", "кодекс"),
+        ("закон", "закон"),
+        ("постановление", "постановление"),
+        ("приказ", "приказ"),
+        ("указ", "указ"),
+        ("правила", "правила"),
+        ("решение", "решение"),
+    )
+    for needle, value in mapping:
+        if needle in lowered:
+            return value
+    return "документ"
+
+
+def extract_authority(title: str, text: str) -> str:
+    haystack = normalize_text(f"{title}\n{text[:1400]}")
+    patterns = (
+        "Президент Республики Казахстан",
+        "Правительство Республики Казахстан",
+        "Министерство",
+        "Министр",
+        "Конституционный Суд",
+        "Верховный Суд",
+        "Парламент Республики Казахстан",
+    )
+    for pattern in patterns:
+        match = re.search(re.escape(pattern) + r"[^\n.]{0,120}", haystack, flags=re.IGNORECASE)
+        if match:
+            return match.group(0).strip(" .")
+    return ""
+
+
+def extract_adoption_date(title: str, text: str) -> str:
+    source = normalize_text(f"{title}\n{text[:1400]}")
+    match = re.search(
+        r"от\s+(\d{1,2}\s+[а-яА-ЯёЁ]+\s+\d{4}\s+года)",
+        source,
+        flags=re.IGNORECASE,
+    )
+    return match.group(1) if match else ""
+
+
+def extract_article_refs(text: str) -> list[str]:
+    refs = re.findall(r"статья\s+\d+(?:-\d+)?", normalize_text(text), flags=re.IGNORECASE)
+    unique: list[str] = []
+    seen: set[str] = set()
+    for ref in refs[:12]:
+        normalized = ref.lower()
+        if normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(ref)
+    return unique
+
+
+def extract_outgoing_references(text: str) -> list[str]:
+    normalized = normalize_text(text)
+    patterns = (
+        r"(кодекс[^\n.]{0,80})",
+        r"(закон[^\n.]{0,80})",
+        r"(постановлени[ея][^\n.]{0,80})",
+        r"(приказ[^\n.]{0,80})",
+        r"(правил[аы][^\n.]{0,80})",
+    )
+    results: list[str] = []
+    seen: set[str] = set()
+    for pattern in patterns:
+        for match in re.findall(pattern, normalized, flags=re.IGNORECASE):
+            cleaned = " ".join(match.split())
+            key = cleaned.lower()
+            if len(cleaned) < 10 or key in seen:
+                continue
+            seen.add(key)
+            results.append(cleaned)
+            if len(results) >= 8:
+                return results
+    return results
+
+
+def extract_base_title_from_amendment(title: str) -> str:
+    normalized = normalize_text(title)
+    match = re.search(r"о внесении [^,]* в\s+(.+)", normalized, flags=re.IGNORECASE)
+    if match:
+        return match.group(1).strip(" .")
+    return ""
+
+
+def infer_source_metadata(title: str, text: str) -> dict:
+    status = ""
+    normalized_text = normalize_text(text).lower()
+    if "утратил силу" in normalized_text or "утратила силу" in normalized_text:
+        status = "утратил силу"
+    elif "вводится в действие" in normalized_text or "действует" in normalized_text:
+        status = "действует"
+
+    version_role: Literal["base_act", "amendment_act", "unknown"] = "unknown"
+    normalized_title = normalize_text(title).lower()
+    if normalized_title.startswith("о внесении "):
+        version_role = "amendment_act"
+    elif title.strip():
+        version_role = "base_act"
+
+    return {
+        "document_type": extract_document_type(title),
+        "authority": extract_authority(title, text),
+        "adoption_date": extract_adoption_date(title, text),
+        "status": status,
+        "article_refs": extract_article_refs(text),
+        "outgoing_references": extract_outgoing_references(text),
+        "version_role": version_role,
+        "linked_base_title": extract_base_title_from_amendment(title) if version_role == "amendment_act" else "",
+    }
+
+
 def looks_stale(source: SourceItem) -> bool:
     haystack = normalize_text(f"{source.title}\n{source.text}").lower()
-    return "утратил силу" in haystack or "утратила силу" in haystack
+    stale_markers = (
+        "утратил силу",
+        "утратила силу",
+        "утратили силу",
+        "признать утратившим силу",
+        "признать утратившей силу",
+    )
+    return any(marker in haystack for marker in stale_markers)
 
 
 def looks_like_amendment(source: SourceItem) -> bool:
-    return source.title.strip().lower().startswith("о внесении ")
+    return source.version_role == "amendment_act" or source.title.strip().lower().startswith("о внесении ")
+
+
+def snippet_from_text(text: str, max_chars: int = 220) -> str:
+    snippet = " ".join(normalize_text(text).split())
+    if len(snippet) <= max_chars:
+        return snippet
+    return snippet[: max_chars - 3].rstrip() + "..."
 
 
 def build_related_documents(sources: list[SourceItem]) -> list[FindingItem]:
@@ -524,8 +695,10 @@ def build_conflict_findings(sources: list[SourceItem]) -> list[FindingItem]:
 def build_duplicate_findings(sources: list[SourceItem]) -> list[FindingItem]:
     findings: list[FindingItem] = []
     seen_titles: set[str] = set()
+    seen_signatures: set[str] = set()
     for source in sources:
         normalized_title = normalize_text(source.title).lower()
+        normalized_signature = normalize_text(source.text[:260]).lower()
         if normalized_title in seen_titles:
             findings.append(
                 FindingItem(
@@ -537,6 +710,17 @@ def build_duplicate_findings(sources: list[SourceItem]) -> list[FindingItem]:
             )
             continue
         seen_titles.add(normalized_title)
+        if normalized_signature in seen_signatures:
+            findings.append(
+                FindingItem(
+                    title=source.title,
+                    url=source.url,
+                    signal="semantic_overlap",
+                    explanation="Во фрагменте найдено почти дословное смысловое совпадение с другим результатом, возможен дубль нормы.",
+                )
+            )
+            continue
+        seen_signatures.add(normalized_signature)
 
         if looks_like_amendment(source):
             findings.append(
@@ -566,12 +750,135 @@ def build_staleness_findings(sources: list[SourceItem]) -> list[FindingItem]:
     return findings
 
 
+def build_version_diffs(query: str, sources: list[SourceItem]) -> list[VersionDiffItem]:
+    base_candidates = [source for source in sources if source.version_role == "base_act"]
+    amendment_candidates = [source for source in sources if looks_like_amendment(source)]
+
+    findings: list[VersionDiffItem] = []
+    for amendment in amendment_candidates:
+        base = None
+        if amendment.linked_base_title:
+            linked_lower = normalize_text(amendment.linked_base_title).lower()
+            base = next(
+                (
+                    candidate
+                    for candidate in base_candidates
+                    if linked_lower and linked_lower in normalize_text(candidate.title).lower()
+                ),
+                None,
+            )
+        if base is None and base_candidates:
+            base = base_candidates[0]
+
+        previous_fragment = snippet_from_text(base.text if base else query)
+        current_fragment = snippet_from_text(amendment.text)
+        explanation = (
+            f"Найдена цепочка версий: базовый акт «{base.title if base else 'входной документ'}» "
+            f"и поправка «{amendment.title}». Требуется сравнить, как поправка меняет действие нормы."
+        )
+        findings.append(
+            VersionDiffItem(
+                title=amendment.title,
+                url=amendment.url,
+                signal="amendment_chain",
+                previous_fragment=previous_fragment,
+                current_fragment=current_fragment,
+                explanation=explanation,
+            )
+        )
+    return findings
+
+
+def build_relation_graph(query: str, sources: list[SourceItem]) -> RelationGraph:
+    nodes: list[GraphNode] = [
+        GraphNode(
+            id="query",
+            label=snippet_from_text(query, max_chars=80),
+            node_type="query",
+            risk_level="medium",
+        )
+    ]
+    edges: list[GraphEdge] = []
+
+    for index, source in enumerate(sources, start=1):
+        node_id = f"source_{index}"
+        risk_level: Literal["low", "medium", "high"] = "low"
+        if source.contradiction or looks_stale(source):
+            risk_level = "high"
+        elif looks_like_amendment(source):
+            risk_level = "medium"
+
+        nodes.append(
+            GraphNode(
+                id=node_id,
+                label=source.title,
+                node_type=source.document_type or "document",
+                risk_level=risk_level,
+            )
+        )
+
+        relation = "related"
+        explanation = "Семантически связан с входным документом по retrieval."
+        if source.contradiction:
+            relation = "contradicts"
+            explanation = source.judge.step_3_compare if source.judge and source.judge.step_3_compare else "Выявлен потенциальный конфликт нормы."
+        elif looks_stale(source):
+            relation = "obsolete"
+            explanation = "В тексте или заголовке найден признак утраты силы."
+        elif looks_like_amendment(source):
+            relation = "amends"
+            explanation = "Документ выглядит как поправка к базовому акту."
+
+        edges.append(
+            GraphEdge(
+                source="query",
+                target=node_id,
+                relation=relation,
+                explanation=explanation,
+            )
+        )
+
+        for ref_index, reference in enumerate(source.outgoing_references[:2], start=1):
+            ref_id = f"{node_id}_ref_{ref_index}"
+            if not any(node.id == ref_id for node in nodes):
+                nodes.append(
+                    GraphNode(
+                        id=ref_id,
+                        label=reference,
+                        node_type="reference",
+                        risk_level="low",
+                    )
+                )
+            edges.append(
+                GraphEdge(
+                    source=node_id,
+                    target=ref_id,
+                    relation="references",
+                    explanation="Во фрагменте есть явная текстовая ссылка на другой нормативный акт.",
+                )
+            )
+
+    mermaid_lines = ["graph TD"]
+    for node in nodes:
+        safe_label = node.label.replace('"', "'")
+        mermaid_lines.append(f'    {node.id}["{safe_label}"]')
+    for edge in edges:
+        mermaid_lines.append(f"    {edge.source} -->|{edge.relation}| {edge.target}")
+
+    summary = (
+        f"Построен граф связей: {len(nodes)} узлов и {len(edges)} связей. "
+        "Связи показывают релевантность, поправки, конфликты, устаревание и текстовые ссылки между актами."
+    )
+    return RelationGraph(nodes=nodes, edges=edges, summary=summary, mermaid="\n".join(mermaid_lines))
+
+
 def build_executive_summary(
     mode: Literal["norm_review", "title_search", "legal_question"],
     sources: list[SourceItem],
     conflicts: list[FindingItem],
     duplicates: list[FindingItem],
     staleness: list[FindingItem],
+    version_diffs: list[VersionDiffItem],
 ) -> str:
     if not sources:
         return "В базе не найдено достаточно близких актов для анализа."
@@ -589,6 +896,8 @@ def build_executive_summary(
         risk_parts.append(f"сигналов дублирования/версий: {len(duplicates)}")
     if staleness:
         risk_parts.append(f"сигналов устаревания: {len(staleness)}")
+    if version_diffs:
+        risk_parts.append(f"цепочек версий/поправок: {len(version_diffs)}")
 
     if not risk_parts:
         return f"{lead} Явных сигналов конфликта, дублирования или устаревания среди верхних результатов не найдено."
@@ -600,6 +909,7 @@ def build_norm_status(
     conflicts: list[FindingItem],
     duplicates: list[FindingItem],
     staleness: list[FindingItem],
+    version_diffs: list[VersionDiffItem],
 ) -> NormStatus:
     if not sources:
         return NormStatus(
@@ -622,11 +932,11 @@ def build_norm_status(
             summary="Найдены потенциальные противоречия, поэтому норму лучше отправить на ручную юридическую проверку.",
         )
 
-    if duplicates:
+    if duplicates or version_diffs:
         return NormStatus(
             label="amendment_detected",
             title="Есть поправки или близкие версии",
-            summary="По найденным актам видно, что норма связана с поправками или несколькими близкими редакциями.",
+            summary="По найденным актам видно, что норма связана с поправками, несколькими близкими редакциями или изменениями версии.",
         )
 
     return NormStatus(
@@ -658,6 +968,10 @@ def generate_answer(query: str, sources: list[SourceItem]) -> str:
             f"Источник {index}\n"
             f"Название: {source.title}\n"
             f"URL: {source.url or 'не указан'}\n"
+            f"Тип: {source.document_type or 'не определен'}\n"
+            f"Статус: {source.status or 'не определен'}\n"
+            f"Дата: {source.adoption_date or 'не найдена'}\n"
+            f"Орган: {source.authority or 'не найден'}\n"
             f"Текст: {trimmed_text}"
         )
 
@@ -722,11 +1036,54 @@ def build_compare_summary(baseline: dict, judge: JudgePayload) -> str:
     )
 
 
+def infer_title_from_query(query: str) -> str:
+    normalized = normalize_text(query).strip()
+    first_line = normalized.splitlines()[0].strip() if normalized else ""
+    if len(first_line) >= 20:
+        return first_line[:140]
+    if len(normalized) > 140:
+        return normalized[:140].rstrip() + "..."
+    return normalized or "Входной документ"
+
+
+def build_direct_input_source(query: str) -> SourceItem:
+    metadata = infer_source_metadata(infer_title_from_query(query), query)
+    return SourceItem(
+        title=infer_title_from_query(query),
+        url="",
+        text=query,
+        distance=0.0,
+        baseline_label="not_applicable",
+        baseline_score=1.0,
+        contradiction=False,
+        judge=None,
+        **metadata,
+    )
+
+
 def analyze_query(query: str, top_k: int) -> Tuple[str, list[SourceItem], str]:
-    retrieved = hybrid_search(query, limit=top_k)
+    try:
+        retrieved = hybrid_search(query, limit=top_k)
+    except FileNotFoundError:
+        retrieved = []
+    except RuntimeError as exc:
+        if "Vector DB not found" in str(exc):
+            retrieved = []
+        else:
+            raise
+
     if not retrieved:
-        answer = "Я не нашел точной информации в загруженной базе. Попробуйте переформулировать запрос."
-        return answer, [], "Judge не запускался, потому что retrieval не нашел достаточно близких источников."
+        direct_source = build_direct_input_source(query)
+        answer = (
+            "Локальная база пока недоступна, поэтому выполнен прямой разбор входного документа. "
+            "Система извлекла базовые признаки нормы, статусные сигналы и связи по самому тексту, "
+            "но не сравнивала документ с корпусом НПА."
+        )
+        return (
+            answer,
+            [direct_source],
+            "Judge не запускался: корпус не загружен или retrieval не нашел близких документов. Доступен только direct document review.",
+        )
 
     strong_matches = [item for item in retrieved if is_strong_match(item)]
     judge_enabled = query_looks_like_norm(query) and bool(strong_matches)
@@ -759,6 +1116,7 @@ def analyze_query(query: str, top_k: int) -> Tuple[str, list[SourceItem], str]:
                 baseline_score=baseline["score"],
                 contradiction=contradiction,
                 judge=judge_payload,
+                **infer_source_metadata(item["title"], item["text"]),
             )
         )
 
@@ -773,13 +1131,67 @@ def analyze_query(query: str, top_k: int) -> Tuple[str, list[SourceItem], str]:
     return answer, sources, judge_summary
 
 
+@app.get("/api/stats")
+def corpus_stats() -> dict:
+    """Return basic statistics about the indexed corpus."""
+    doc_count = 0
+    empty_count = 0
+    type_counts: dict[str, int] = {}
+
+    csv_path = get_csv_path()
+    if csv_path.exists():
+        raise_csv_field_limit()
+        try:
+            with csv_path.open("r", encoding="utf-8", newline="") as handle:
+                reader = csv.DictReader(handle)
+                for row in reader:
+                    doc_count += 1
+                    content = (row.get("content") or row.get("text") or "").strip()
+                    if not content:
+                        empty_count += 1
+                    doc_type = (row.get("document_type") or "unknown").strip()
+                    type_counts[doc_type] = type_counts.get(doc_type, 0) + 1
+        except Exception:
+            pass
+
+    db_size_mb = 0.0
+    if DB_DIR.exists():
+        db_size_mb = round(
+            sum(f.stat().st_size for f in DB_DIR.rglob("*") if f.is_file()) / 1_048_576, 2
+        )
+
+    return {
+        "status": "ok",
+        "corpus": {
+            "total_documents": doc_count,
+            "documents_with_text": doc_count - empty_count,
+            "empty_documents": empty_count,
+            "coverage_pct": round((doc_count - empty_count) / doc_count * 100, 1) if doc_count else 0,
+            "document_types": type_counts,
+        },
+        "vector_db": {
+            "path": str(DB_DIR),
+            "exists": DB_DIR.exists(),
+            "size_mb": db_size_mb,
+        },
+        "model": {
+            "llm": LLM_MODEL,
+            "embedding": EMBEDDING_MODEL,
+            "nli": NLI_MODEL,
+        },
+    }
+
+
 @app.get("/health")
 def healthcheck() -> dict:
     return {
         "status": "ok",
         "service": "zanai-backend",
+        "version": app.version,
         "db_ready": DB_DIR.exists(),
         "llm_model": LLM_MODEL,
+        "embedding_model": EMBEDDING_MODEL,
+        "api_key_set": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "nli_model": NLI_MODEL,
         "default_top_k": DEFAULT_TOP_K,
         "retrieval_threshold": MAX_DISTANCE,
@@ -802,11 +1214,14 @@ def analyze_law(request: AnalyzeRequest) -> AnalyzeResponse:
     possible_conflicts = build_conflict_findings(sources)
     possible_duplicates = build_duplicate_findings(sources)
     staleness_signals = build_staleness_findings(sources)
+    version_diffs = build_version_diffs(query, sources)
+    relation_graph = build_relation_graph(query, sources)
     norm_status = build_norm_status(
         sources,
         possible_conflicts,
         possible_duplicates,
         staleness_signals,
+        version_diffs,
     )
     executive_summary = build_executive_summary(
         analysis_mode,
@@ -814,6 +1229,7 @@ def analyze_law(request: AnalyzeRequest) -> AnalyzeResponse:
         possible_conflicts,
         possible_duplicates,
         staleness_signals,
+        version_diffs,
     )
     primary_document_title = sources[0].title if sources else ""
 
@@ -831,6 +1247,8 @@ def analyze_law(request: AnalyzeRequest) -> AnalyzeResponse:
         possible_conflicts=possible_conflicts,
         possible_duplicates=possible_duplicates,
         staleness_signals=staleness_signals,
+        version_diffs=version_diffs,
+        relation_graph=relation_graph,
         total_sources=len(sources),
         retrieval_threshold=MAX_DISTANCE,
     )
@@ -869,6 +1287,102 @@ def compare_norms(request: CompareRequest) -> CompareResponse:
         baseline_score=baseline["score"],
         judge=judge_payload,
         summary=build_compare_summary(baseline, judge_payload),
+    )
+
+
+class BulkCheckRequest(BaseModel):
+    norms: list[str] = Field(..., min_length=2, max_length=10, description="2–10 norm texts to cross-check.")
+
+
+class PairResult(BaseModel):
+    index_a: int
+    index_b: int
+    text_a: str
+    text_b: str
+    baseline_label: str
+    baseline_score: float
+    signal: str  # "contradiction" | "duplicate" | "neutral"
+    explanation: str
+
+
+class BulkCheckResponse(BaseModel):
+    status: Literal["ok"]
+    total_pairs: int
+    contradictions: list[PairResult]
+    duplicates: list[PairResult]
+    neutral_pairs: list[PairResult]
+    summary: str
+
+
+@app.post("/api/bulk-check", response_model=BulkCheckResponse)
+def bulk_check(request: BulkCheckRequest) -> BulkCheckResponse:
+    """Cross-check all pairs among the submitted norms for contradictions and duplicates."""
+    norms = [n.strip() for n in request.norms if n.strip()]
+    if len(norms) < 2:
+        raise HTTPException(status_code=400, detail="At least 2 non-empty norms required.")
+
+    contradictions: list[PairResult] = []
+    duplicates: list[PairResult] = []
+    neutral_pairs: list[PairResult] = []
+
+    try:
+        for i in range(len(norms)):
+            for j in range(i + 1, len(norms)):
+                result = get_nli_result(norms[i], norms[j])
+                label = result["label"]
+                score = float(result["score"])
+
+                if label == "contradiction" and score >= 0.5:
+                    signal = "contradiction"
+                    explanation = (
+                        f"Норма {i + 1} и Норма {j + 1} устанавливают несовместимые требования "
+                        f"(уверенность: {score:.0%}). Требуется проверка юриста."
+                    )
+                    contradictions.append(PairResult(
+                        index_a=i, index_b=j,
+                        text_a=norms[i], text_b=norms[j],
+                        baseline_label=label, baseline_score=score,
+                        signal=signal, explanation=explanation,
+                    ))
+                elif label == "entailment" and score >= 0.6:
+                    signal = "duplicate"
+                    explanation = (
+                        f"Норма {i + 1} и Норма {j + 1} фактически дублируют друг друга "
+                        f"(уверенность: {score:.0%}). Одна из норм может быть устаревшей или избыточной."
+                    )
+                    duplicates.append(PairResult(
+                        index_a=i, index_b=j,
+                        text_a=norms[i], text_b=norms[j],
+                        baseline_label=label, baseline_score=score,
+                        signal=signal, explanation=explanation,
+                    ))
+                else:
+                    neutral_pairs.append(PairResult(
+                        index_a=i, index_b=j,
+                        text_a=norms[i], text_b=norms[j],
+                        baseline_label=label, baseline_score=score,
+                        signal="neutral", explanation="Нормы не противоречат и не дублируют друг друга.",
+                    ))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+    total_pairs = len(norms) * (len(norms) - 1) // 2
+    parts = []
+    if contradictions:
+        parts.append(f"Выявлено {len(contradictions)} противоречие(й)")
+    if duplicates:
+        parts.append(f"{len(duplicates)} дублирование(й)")
+    if not contradictions and not duplicates:
+        parts.append("Явных противоречий и дублирований не обнаружено")
+    summary = "; ".join(parts) + f" из {total_pairs} проверенных пар."
+
+    return BulkCheckResponse(
+        status="ok",
+        total_pairs=total_pairs,
+        contradictions=contradictions,
+        duplicates=duplicates,
+        neutral_pairs=neutral_pairs,
+        summary=summary,
     )
 
 

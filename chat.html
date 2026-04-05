@@ -72,6 +72,13 @@
 
           <div class="gpt-messages gpt-messages--pane" id="analyzeWindow"></div>
 
+          <div class="gpt-example-chips" aria-label="Примеры запросов">
+            <span class="gpt-chips-label">Попробовать:</span>
+            <button type="button" class="gpt-chip" data-pane="analyze" data-text="Ставка налога на добавленную стоимость составляет 12 процентов.">НДС 12%</button>
+            <button type="button" class="gpt-chip" data-pane="analyze" data-text="Индивидуальный предприниматель обязан подать налоговую декларацию не позднее 31 марта текущего года.">Декларация ИП</button>
+            <button type="button" class="gpt-chip" data-pane="analyze" data-text="Работодатель обязан предупредить работника о сокращении не менее чем за один месяц.">Сокращение</button>
+            <button type="button" class="gpt-chip" data-pane="analyze" data-text="Трудовой кодекс Республики Казахстан">Трудовой кодекс</button>
+          </div>
           <div class="gpt-pane-composer">
             <textarea
               id="analyzeInput"
@@ -96,6 +103,18 @@
 
           <div class="gpt-messages gpt-messages--pane" id="compareWindow"></div>
 
+          <div class="gpt-example-chips" aria-label="Примеры для сравнения">
+            <span class="gpt-chips-label">Примеры:</span>
+            <button type="button" class="gpt-chip" data-pane="compare"
+              data-text-a="Налог должен быть уплачен в течение 10 календарных дней после получения уведомления."
+              data-text-b="Налог уплачивается в течение 30 календарных дней с момента получения требования об уплате.">Сроки уплаты</button>
+            <button type="button" class="gpt-chip" data-pane="compare"
+              data-text-a="Работник имеет право на ежегодный оплачиваемый отпуск продолжительностью не менее 24 календарных дней."
+              data-text-b="Минимальная продолжительность ежегодного трудового отпуска составляет 28 календарных дней.">Отпуск</button>
+            <button type="button" class="gpt-chip" data-pane="compare"
+              data-text-a="Ставка корпоративного подоходного налога составляет 20 процентов от налогооблагаемого дохода."
+              data-text-b="Корпоративный подоходный налог уплачивается по ставке 15 процентов.">КПН ставки</button>
+          </div>
           <div class="gpt-pane-composer gpt-pane-composer--stack">
             <textarea
               id="compareInputA"
@@ -126,6 +145,41 @@
       </p>
     </div>
 
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+      mermaid.initialize({ startOnLoad: false, theme: "neutral" });
+      window.__mermaidRender = async (el) => {
+        const code = el.textContent.trim();
+        if (!code.startsWith("graph") && !code.startsWith("flowchart")) return;
+        try {
+          const id = "mermaid-" + Math.random().toString(36).slice(2, 9);
+          const { svg } = await mermaid.render(id, code);
+          const wrapper = document.createElement("div");
+          wrapper.className = "mermaid-diagram";
+          wrapper.innerHTML = svg;
+          el.replaceWith(wrapper);
+        } catch {
+          /* leave as text if render fails */
+        }
+      };
+    </script>
+    <script>
+      // Example chips — fill inputs on click
+      document.addEventListener("click", function(e) {
+        const chip = e.target.closest(".gpt-chip");
+        if (!chip) return;
+        const pane = chip.dataset.pane;
+        if (pane === "analyze") {
+          const input = document.getElementById("analyzeInput");
+          if (input) { input.value = chip.dataset.text; input.focus(); input.dispatchEvent(new Event("input")); }
+        } else if (pane === "compare") {
+          const a = document.getElementById("compareInputA");
+          const b = document.getElementById("compareInputB");
+          if (a) { a.value = chip.dataset.textA || ""; a.dispatchEvent(new Event("input")); }
+          if (b) { b.value = chip.dataset.textB || ""; b.focus(); b.dispatchEvent(new Event("input")); }
+        }
+      });
+    </script>
     <script src="./chat.js"></script>
   </body>
 </html>

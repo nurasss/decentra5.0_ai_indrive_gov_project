@@ -125,6 +125,34 @@ def compute_metrics(rows: list[dict]) -> dict:
     }
 
 
+def compute_category_metrics(dataset: list[dict], results: list[dict]) -> dict:
+    """Break down accuracy by category field (if present in the dataset)."""
+    id_to_category = {row["id"]: row.get("category", "uncategorized") for row in dataset}
+    by_category: dict[str, list[dict]] = {}
+    for row in results:
+        cat = id_to_category.get(row["id"], "uncategorized")
+        by_category.setdefault(cat, []).append(row)
+
+    summary = {}
+    for cat, cat_rows in sorted(by_category.items()):
+        correct = sum(1 for r in cat_rows if r["actual"] == r["predicted"])
+        summary[cat] = {
+            "total": len(cat_rows),
+            "correct": correct,
+            "accuracy": correct / len(cat_rows) if cat_rows else 0.0,
+        }
+    return summary
+
+
+def print_category_report(category_metrics: dict) -> None:
+    if not category_metrics:
+        return
+    print("\n=== ACCURACY BY CATEGORY ===")
+    for cat, m in category_metrics.items():
+        bar = "#" * m["correct"] + "-" * (m["total"] - m["correct"])
+        print(f"  {cat:<35} {m['correct']}/{m['total']}  [{bar}]  {m['accuracy']:.0%}")
+
+
 def threshold_sweep(dataset: list[dict], thresholds: list[float]) -> list[dict]:
     nli = build_nli()
     summary: list[dict] = []
@@ -228,7 +256,7 @@ def evaluate_judge(dataset: list[dict]) -> Tuple[list[dict], dict]:
     return results, metrics
 
 
-def print_report(results: list[dict], metrics: dict, ollama_metrics: Optional[dict]) -> None:
+def print_report(results: list[dict], metrics: dict, ollama_metrics: Optional[dict], dataset: Optional[list[dict]] = None) -> None:
     print("\n=== NLI METRICS ===")
     print(f"Total cases:   {metrics['total']}")
     print(f"Accuracy:      {metrics['accuracy']:.3f}")
@@ -250,6 +278,9 @@ def print_report(results: list[dict], metrics: dict, ollama_metrics: Optional[di
     print(
         f"  actual no contradiction -> predicted no contradiction: {metrics['confusion_matrix']['actual_no_contradiction_predicted_no_contradiction']}"
     )
+
+    if dataset:
+        print_category_report(compute_category_metrics(dataset, results))
 
     print("\n=== CASES ===")
     for row in results:
@@ -277,7 +308,7 @@ def print_threshold_report(rows: list[dict]) -> None:
         )
 
 
-def print_judge_report(results: list[dict], metrics: dict) -> None:
+def print_judge_report(results: list[dict], metrics: dict, dataset: Optional[list[dict]] = None) -> None:
     print("\n=== LLM JUDGE METRICS ===")
     print(f"Total cases:   {metrics['total']}")
     print(f"Accuracy:      {metrics['accuracy']:.3f}")
@@ -299,6 +330,8 @@ def print_judge_report(results: list[dict], metrics: dict) -> None:
     print(
         f"  actual no contradiction -> predicted no contradiction: {metrics['confusion_matrix']['actual_no_contradiction_predicted_no_contradiction']}"
     )
+    if dataset:
+        print_category_report(compute_category_metrics(dataset, results))
     for row in results:
         status = "OK" if row["actual"] == row["predicted"] else "MISS"
         print(
@@ -558,7 +591,7 @@ def main() -> None:
         predicted_positive_rows = [row for row in results if row["predicted"]]
         ollama_metrics = evaluate_ollama(dataset, predicted_positive_rows)
 
-    print_report(results, metrics, ollama_metrics)
+    print_report(results, metrics, ollama_metrics, dataset=dataset)
 
     if args.sweep_thresholds:
         sweep = threshold_sweep(dataset, thresholds=[0.5, 0.6, 0.7, 0.8, 0.9])
@@ -566,7 +599,7 @@ def main() -> None:
 
     if args.with_judge:
         judge_results, judge_metrics = evaluate_judge(dataset)
-        print_judge_report(judge_results, judge_metrics)
+        print_judge_report(judge_results, judge_metrics, dataset=dataset)
         compare_models(metrics, judge_metrics)
 
         if args.export_errors:

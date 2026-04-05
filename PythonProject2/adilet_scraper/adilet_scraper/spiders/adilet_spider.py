@@ -39,11 +39,12 @@ class AdiletSpider(scrapy.Spider):
             raise CloseSpider("no_urls_to_crawl")
 
     def _iter_urls(self):
+        base = Path(__file__).resolve().parents[2]
         candidate_paths = [
             self.urls_file,
-            Path(__file__).resolve().parents[2] / "adilet_links.csv",
-            Path(r"C:\Users\bulat\Desktop\copilot agent web\PythonProject2\adilet_links_BACKUP.csv"),
-            Path(r"C:\Users\bulat\Desktop\copilot agent web\PythonProject2\adilet_document_links.csv"),
+            base / "adilet_links.csv",
+            base / "adilet_links_BACKUP.csv",
+            base / "adilet_document_links.csv",
         ]
         candidate_paths = [path for path in candidate_paths if path]
         csv_path = next((path for path in candidate_paths if path.exists()), None)

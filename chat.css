@@ -954,3 +954,116 @@ html.chat-root body::before {
 .gpt-shell.pane-compare .gpt-workspace:nth-child(1) {
   display: none;
 }
+
+/* Example chips */
+.gpt-example-chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px 4px;
+}
+
+.gpt-chips-label {
+  font-size: 11px;
+  color: var(--text-muted, #8a8f9e);
+  white-space: nowrap;
+}
+
+.gpt-chip {
+  background: var(--surface, #f3f4f8);
+  border: 1px solid var(--border, #e3e6ed);
+  border-radius: 20px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-family: inherit;
+  color: var(--text-secondary, #4a5068);
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  white-space: nowrap;
+}
+
+.gpt-chip:hover {
+  background: var(--accent, #2563eb);
+  border-color: var(--accent, #2563eb);
+  color: #fff;
+}
+
+/* Routing badges */
+.gpt-routing-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.gpt-badge--critical {
+  background: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fca5a5;
+}
+
+.gpt-badge--review {
+  background: #fffbeb;
+  color: #92400e;
+  border: 1px solid #fcd34d;
+}
+
+.gpt-badge--pass {
+  background: #f0fdf4;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+/* Step-by-step explainability */
+.gpt-step {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 10px;
+}
+
+.gpt-step-num {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  border-radius: 50%;
+  background: var(--accent, #2563eb);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.gpt-step-alert {
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #92400e;
+  margin-top: 4px;
+}
+
+/* Mermaid graph diagram */
+.mermaid-diagram {
+  background: var(--surface, #f8f9fb);
+  border: 1px solid var(--border, #e3e6ed);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 8px 0;
+  overflow-x: auto;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+.gpt-mermaid-source {
+  display: none;
+}
